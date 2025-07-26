@@ -289,9 +289,7 @@ class TestRunner:
         )
         failed_tests = total_tests - successful_tests
 
-        sum(
-            result["execution_time"] for result in self.test_results.values()
-        )
+        sum(result["execution_time"] for result in self.test_results.values())
 
         summary = {
             "timestamp": datetime.now().isoformat(),

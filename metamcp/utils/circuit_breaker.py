@@ -20,14 +20,16 @@ settings = get_settings()
 
 class CircuitState(Enum):
     """Circuit breaker states."""
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"          # Circuit is open, calls fail fast
+
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Circuit is open, calls fail fast
     HALF_OPEN = "half_open"  # Testing if service is recovered
 
 
 @dataclass
 class CircuitBreakerConfig:
     """Configuration for circuit breaker."""
+
     failure_threshold: int = 5  # Number of failures before opening circuit
     recovery_timeout: int = 60  # Seconds to wait before trying half-open
     expected_exception: type = Exception  # Exception type to count as failure
@@ -37,6 +39,7 @@ class CircuitBreakerConfig:
 @dataclass
 class CircuitBreakerStats:
     """Circuit breaker statistics."""
+
     total_calls: int = 0
     successful_calls: int = 0
     failed_calls: int = 0
@@ -48,7 +51,7 @@ class CircuitBreakerStats:
 class CircuitBreaker:
     """
     Circuit breaker implementation for external service calls.
-    
+
     Provides fault tolerance by monitoring failures and temporarily
     stopping calls to failing services.
     """
@@ -61,7 +64,7 @@ class CircuitBreaker:
     ):
         """
         Initialize circuit breaker.
-        
+
         Args:
             name: Circuit breaker name for identification
             config: Configuration parameters
@@ -70,7 +73,7 @@ class CircuitBreaker:
         self.name = name
         self.config = config or CircuitBreakerConfig()
         self.on_state_change = on_state_change
-        
+
         # State management
         self._state = CircuitState.CLOSED
         self._failure_count = 0
@@ -78,10 +81,10 @@ class CircuitBreaker:
         self._last_failure_time = None
         self._last_success_time = None
         self._lock = asyncio.Lock()
-        
+
         # Statistics
         self.stats = CircuitBreakerStats()
-        
+
         logger.info(f"Circuit breaker '{name}' initialized with config: {self.config}")
 
     @property
@@ -107,15 +110,15 @@ class CircuitBreaker:
     async def call(self, func: Callable, *args, **kwargs) -> Any:
         """
         Execute function with circuit breaker protection.
-        
+
         Args:
             func: Function to execute
             *args: Function arguments
             **kwargs: Function keyword arguments
-            
+
         Returns:
             Function result
-            
+
         Raises:
             CircuitBreakerOpenError: If circuit is open
             Exception: Original function exception
@@ -143,7 +146,7 @@ class CircuitBreaker:
             await self._on_success()
             return result
 
-        except self.config.expected_exception as e:
+        except self.config.expected_exception:
             # Failure - update state
             await self._on_failure()
             raise
@@ -154,12 +157,12 @@ class CircuitBreaker:
             self._failure_count = 0
             self._success_count += 1
             self._last_success_time = time.time()
-            
+
             # Update statistics
             self.stats.total_calls += 1
             self.stats.successful_calls += 1
             self.stats.last_success_time = self._last_success_time
-            
+
             # Close circuit if in half-open state
             if self._state == CircuitState.HALF_OPEN:
                 if self._success_count >= self.config.success_threshold:
@@ -172,12 +175,12 @@ class CircuitBreaker:
         async with self._lock:
             self._failure_count += 1
             self._last_failure_time = time.time()
-            
+
             # Update statistics
             self.stats.total_calls += 1
             self.stats.failed_calls += 1
             self.stats.last_failure_time = self._last_failure_time
-            
+
             # Open circuit if threshold reached
             if self._failure_count >= self.config.failure_threshold:
                 if self._state != CircuitState.OPEN:
@@ -191,16 +194,15 @@ class CircuitBreaker:
         """Check if circuit should attempt reset."""
         if not self._last_failure_time:
             return False
-        
+
         return (time.time() - self._last_failure_time) >= self.config.recovery_timeout
 
     async def _set_state(self, new_state: CircuitState) -> None:
         """Set circuit state and trigger callback."""
         if self._state != new_state:
-            old_state = self._state
             self._state = new_state
             self.stats.current_state = new_state
-            
+
             # Trigger callback if provided
             if self.on_state_change:
                 try:
@@ -224,13 +226,14 @@ class CircuitBreaker:
 
 class CircuitBreakerOpenError(Exception):
     """Exception raised when circuit breaker is open."""
+
     pass
 
 
 class CircuitBreakerManager:
     """
     Manager for multiple circuit breakers.
-    
+
     Provides centralized management and monitoring of circuit breakers.
     """
 
@@ -246,11 +249,11 @@ class CircuitBreakerManager:
     ) -> CircuitBreaker:
         """
         Get or create circuit breaker.
-        
+
         Args:
             name: Circuit breaker name
             config: Configuration (only used for new instances)
-            
+
         Returns:
             Circuit breaker instance
         """
@@ -261,7 +264,7 @@ class CircuitBreakerManager:
                     config=config,
                     on_state_change=self._on_state_change,
                 )
-            
+
             return self._circuit_breakers[name]
 
     def _on_state_change(self, name: str, state: CircuitState) -> None:
@@ -270,10 +273,7 @@ class CircuitBreakerManager:
 
     async def get_all_stats(self) -> dict[str, CircuitBreakerStats]:
         """Get statistics for all circuit breakers."""
-        return {
-            name: cb.get_stats() 
-            for name, cb in self._circuit_breakers.items()
-        }
+        return {name: cb.get_stats() for name, cb in self._circuit_breakers.items()}
 
     async def reset_all(self) -> None:
         """Reset all circuit breakers."""
@@ -305,11 +305,11 @@ async def get_circuit_breaker(
 ) -> CircuitBreaker:
     """
     Get circuit breaker by name.
-    
+
     Args:
         name: Circuit breaker name
         config: Configuration (only used for new instances)
-        
+
     Returns:
         Circuit breaker instance
     """

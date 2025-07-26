@@ -124,9 +124,7 @@ class WorkflowDefinition(BaseModel):
     )
     security_level: str = Field("medium", description="Security level")
 
-    model_config = {
-        "arbitrary_types_allowed": True
-    }
+    model_config = {"arbitrary_types_allowed": True}
 
 
 class WorkflowExecutionRequest(BaseModel):

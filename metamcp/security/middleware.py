@@ -8,7 +8,6 @@ and input validation.
 import re
 import secrets
 from typing import Any, Callable
-from urllib.parse import urlparse
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -38,7 +37,12 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
 
             # CSRF Protection
-            if self.csrf_enabled and request.method in ["POST", "PUT", "DELETE", "PATCH"]:
+            if self.csrf_enabled and request.method in [
+                "POST",
+                "PUT",
+                "DELETE",
+                "PATCH",
+            ]:
                 csrf_result = await self._check_csrf(request)
                 if not csrf_result["valid"]:
                     return JSONResponse(
@@ -46,8 +50,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                         content={
                             "error": "csrf_violation",
                             "message": "CSRF token validation failed",
-                            "details": csrf_result["reason"]
-                        }
+                            "details": csrf_result["reason"],
+                        },
                     )
 
             # XSS Protection
@@ -59,8 +63,8 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                         content={
                             "error": "xss_violation",
                             "message": "XSS protection violation detected",
-                            "details": xss_result["reason"]
-                        }
+                            "details": xss_result["reason"],
+                        },
                     )
 
             # Process request
@@ -85,7 +89,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             "/openapi.json",
             "/mcp/ws",  # WebSocket connections
         ]
-        
+
         return any(request.url.path.startswith(path) for path in skip_paths)
 
     async def _check_csrf(self, request: Request) -> dict[str, Any]:
@@ -123,7 +127,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 if self._contains_xss_pattern(param_value):
                     return {
                         "valid": False,
-                        "reason": f"XSS pattern detected in query parameter: {param_name}"
+                        "reason": f"XSS pattern detected in query parameter: {param_name}",
                     }
 
             # Check request body for JSON requests
@@ -133,22 +137,24 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     if self._check_json_xss(body):
                         return {
                             "valid": False,
-                            "reason": "XSS pattern detected in request body"
+                            "reason": "XSS pattern detected in request body",
                         }
-                except:
+                except (ValueError, json.JSONDecodeError):
                     pass  # Skip if body is not valid JSON
 
             # Check form data
-            if request.headers.get("content-type", "").startswith("application/x-www-form-urlencoded"):
+            if request.headers.get("content-type", "").startswith(
+                "application/x-www-form-urlencoded"
+            ):
                 try:
                     form_data = await request.form()
                     for field_name, field_value in form_data.items():
                         if self._contains_xss_pattern(str(field_value)):
                             return {
                                 "valid": False,
-                                "reason": f"XSS pattern detected in form field: {field_name}"
+                                "reason": f"XSS pattern detected in form field: {field_name}",
                             }
-                except:
+                except Exception:
                     pass
 
             return {"valid": True, "reason": None}
@@ -205,7 +211,7 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     return True
         elif isinstance(data, str):
             return self._contains_xss_pattern(data)
-        
+
         return False
 
     def _add_security_headers(self, response: Response) -> None:

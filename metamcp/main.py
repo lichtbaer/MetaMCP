@@ -19,15 +19,15 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 
 from .api import create_api_router
+from .cache.redis_cache import close_cache_manager
 from .config import get_settings
 from .exceptions import MetaMCPError
 from .monitoring.health import setup_health_checks
 from .monitoring.metrics import setup_metrics
+from .performance.background_tasks import start_background_tasks, stop_background_tasks
+from .performance.connection_pool import close_database_pool
 from .server import MetaMCPServer
 from .utils.logging import get_logger, setup_logging
-from .performance.background_tasks import start_background_tasks, stop_background_tasks
-from .cache.redis_cache import close_cache_manager
-from .performance.connection_pool import close_database_pool
 
 logger = get_logger(__name__)
 settings = get_settings()

@@ -110,9 +110,7 @@ class MetaMCPCLI:
         print("🛑 Stopping all containers...")
         return self.run_command(["docker", "compose", "down"])
 
-    def docker_build(
-        self, service: str | None = None, no_cache: bool = False
-    ) -> int:
+    def docker_build(self, service: str | None = None, no_cache: bool = False) -> int:
         """Build Docker containers."""
         cmd = ["docker", "compose", "build"]
         if no_cache:

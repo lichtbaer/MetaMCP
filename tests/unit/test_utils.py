@@ -453,7 +453,7 @@ class TestCircuitBreakerDecorator:
 
     async def test_circuit_breaker_decorator(self):
         """Test circuit breaker decorator."""
-        from metamcp.utils.circuit_breaker import circuit_breaker, CircuitBreakerConfig
+        from metamcp.utils.circuit_breaker import CircuitBreakerConfig, circuit_breaker
 
         call_count = 0
 
@@ -475,6 +475,7 @@ class TestCircuitBreakerDecorator:
 
         # Third call should be rejected (circuit breaker should be open after 2 failures)
         from metamcp.utils.circuit_breaker import CircuitBreakerOpenError
+
         with pytest.raises(CircuitBreakerOpenError):
             await test_function()
 

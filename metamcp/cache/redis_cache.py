@@ -36,6 +36,7 @@ class RedisCache:
         if self._redis is None:
             try:
                 import redis.asyncio as redis
+
                 self._redis = redis.from_url(
                     self.redis_url,
                     decode_responses=False,  # Keep as bytes for pickle
@@ -56,54 +57,50 @@ class RedisCache:
         try:
             redis_client = await self._get_redis()
             value = await redis_client.get(key)
-            
+
             if value is None:
                 return default
-            
+
             # Try to deserialize
             try:
                 return pickle.loads(value)
             except (pickle.PickleError, TypeError):
                 # Fallback to JSON
                 try:
-                    return json.loads(value.decode('utf-8'))
+                    return json.loads(value.decode("utf-8"))
                 except (json.JSONDecodeError, UnicodeDecodeError):
-                    return value.decode('utf-8')
-                    
+                    return value.decode("utf-8")
+
         except Exception as e:
             logger.error(f"Cache get error for key {key}: {e}")
             return default
 
     async def set(
-        self, 
-        key: str, 
-        value: Any, 
-        ttl: int = None,
-        serialize: bool = True
+        self, key: str, value: Any, ttl: int = None, serialize: bool = True
     ) -> bool:
         """Set value in cache."""
         try:
             redis_client = await self._get_redis()
-            
+
             # Determine TTL
             if ttl is None:
                 ttl = self.default_ttl
             elif ttl > self.max_ttl:
                 ttl = self.max_ttl
-            
+
             # Serialize value
             if serialize:
                 if isinstance(value, (dict, list, int, float, bool)):
                     serialized = pickle.dumps(value)
                 else:
-                    serialized = str(value).encode('utf-8')
+                    serialized = str(value).encode("utf-8")
             else:
                 serialized = value
-            
+
             # Set with TTL
             result = await redis_client.setex(key, ttl, serialized)
             return bool(result)
-            
+
         except Exception as e:
             logger.error(f"Cache set error for key {key}: {e}")
             return False
@@ -167,7 +164,7 @@ class RedisCache:
         try:
             redis_client = await self._get_redis()
             values = await redis_client.mget(keys)
-            
+
             result = {}
             for key, value in zip(keys, values):
                 if value is not None:
@@ -175,43 +172,39 @@ class RedisCache:
                         result[key] = pickle.loads(value)
                     except (pickle.PickleError, TypeError):
                         try:
-                            result[key] = json.loads(value.decode('utf-8'))
+                            result[key] = json.loads(value.decode("utf-8"))
                         except (json.JSONDecodeError, UnicodeDecodeError):
-                            result[key] = value.decode('utf-8')
-            
+                            result[key] = value.decode("utf-8")
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Cache get_many error: {e}")
             return {}
 
-    async def set_many(
-        self, 
-        data: Dict[str, Any], 
-        ttl: int = None
-    ) -> bool:
+    async def set_many(self, data: Dict[str, Any], ttl: int = None) -> bool:
         """Set multiple values in cache."""
         try:
             redis_client = await self._get_redis()
-            
+
             # Prepare pipeline
             pipe = redis_client.pipeline()
-            
+
             for key, value in data.items():
                 if isinstance(value, (dict, list, int, float, bool)):
                     serialized = pickle.dumps(value)
                 else:
-                    serialized = str(value).encode('utf-8')
-                
+                    serialized = str(value).encode("utf-8")
+
                 if ttl is None:
                     ttl = self.default_ttl
-                
+
                 pipe.setex(key, ttl, serialized)
-            
+
             # Execute pipeline
             await pipe.execute()
             return True
-            
+
         except Exception as e:
             logger.error(f"Cache set_many error: {e}")
             return False
@@ -247,16 +240,13 @@ class CacheManager:
         }
 
     async def get(
-        self, 
-        key: str, 
-        default: Any = None,
-        strategy: str = "default"
+        self, key: str, default: Any = None, strategy: str = "default"
     ) -> Any:
         """Get value with cache strategy."""
         try:
             # Check cache
             value = await self.redis_cache.get(key)
-            
+
             if value is not None:
                 self._cache_stats["hits"] += 1
                 logger.debug(f"Cache HIT for key: {key}")
@@ -265,17 +255,13 @@ class CacheManager:
                 self._cache_stats["misses"] += 1
                 logger.debug(f"Cache MISS for key: {key}")
                 return default
-                
+
         except Exception as e:
             logger.error(f"Cache manager get error: {e}")
             return default
 
     async def set(
-        self, 
-        key: str, 
-        value: Any, 
-        ttl: int = None,
-        strategy: str = "default"
+        self, key: str, value: Any, ttl: int = None, strategy: str = "default"
     ) -> bool:
         """Set value with cache strategy."""
         try:
@@ -288,14 +274,14 @@ class CacheManager:
                 ttl = ttl or 3600  # 1 hour
             else:
                 ttl = ttl or 3600  # 1 hour default
-            
+
             result = await self.redis_cache.set(key, value, ttl)
             if result:
                 self._cache_stats["sets"] += 1
                 logger.debug(f"Cache SET for key: {key} (TTL: {ttl}s)")
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Cache manager set error: {e}")
             return False
@@ -332,7 +318,7 @@ class CacheManager:
         try:
             redis_client = await self.redis_cache._get_redis()
             info = await redis_client.info()
-            
+
             return {
                 "cache_stats": self._cache_stats.copy(),
                 "redis_info": {
@@ -342,11 +328,11 @@ class CacheManager:
                     "total_commands_processed": info.get("total_commands_processed", 0),
                 },
                 "hit_rate": (
-                    self._cache_stats["hits"] / 
-                    (self._cache_stats["hits"] + self._cache_stats["misses"])
+                    self._cache_stats["hits"]
+                    / (self._cache_stats["hits"] + self._cache_stats["misses"])
                     if (self._cache_stats["hits"] + self._cache_stats["misses"]) > 0
                     else 0
-                )
+                ),
             }
         except Exception as e:
             logger.error(f"Cache stats error: {e}")

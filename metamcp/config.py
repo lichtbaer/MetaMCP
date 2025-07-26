@@ -152,9 +152,7 @@ class Settings(BaseSettings):
     )
 
     # Cache Configuration
-    cache_enabled: bool = Field(
-        default=True, description="Enable caching system"
-    )
+    cache_enabled: bool = Field(default=True, description="Enable caching system")
     cache_redis_url: str = Field(
         default="redis://localhost:6379/1", description="Redis URL for caching"
     )
@@ -264,12 +262,24 @@ class Settings(BaseSettings):
     )
 
     # OAuth Provider Credentials
-    google_oauth_client_id: str | None = Field(default=None, description="Google OAuth Client ID")
-    google_oauth_client_secret: str | None = Field(default=None, description="Google OAuth Client Secret")
-    github_oauth_client_id: str | None = Field(default=None, description="GitHub OAuth Client ID")
-    github_oauth_client_secret: str | None = Field(default=None, description="GitHub OAuth Client Secret")
-    microsoft_oauth_client_id: str | None = Field(default=None, description="Microsoft OAuth Client ID")
-    microsoft_oauth_client_secret: str | None = Field(default=None, description="Microsoft OAuth Client Secret")
+    google_oauth_client_id: str | None = Field(
+        default=None, description="Google OAuth Client ID"
+    )
+    google_oauth_client_secret: str | None = Field(
+        default=None, description="Google OAuth Client Secret"
+    )
+    github_oauth_client_id: str | None = Field(
+        default=None, description="GitHub OAuth Client ID"
+    )
+    github_oauth_client_secret: str | None = Field(
+        default=None, description="GitHub OAuth Client Secret"
+    )
+    microsoft_oauth_client_id: str | None = Field(
+        default=None, description="Microsoft OAuth Client ID"
+    )
+    microsoft_oauth_client_secret: str | None = Field(
+        default=None, description="Microsoft OAuth Client Secret"
+    )
 
     @field_validator("environment")
     @classmethod

@@ -12,8 +12,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
-import bcrypt
-
 from .logging import get_logger
 
 logger = get_logger(__name__)
@@ -338,6 +336,7 @@ class Cache:
         # Create hash of the key string using hashlib for deterministic results
         key_string = "|".join(key_parts)
         import hashlib
+
         hash_bytes = hashlib.sha256(key_string.encode()).digest()
         # Convert to hex and truncate to 32 characters for cache key
         return hash_bytes.hex()[:32]

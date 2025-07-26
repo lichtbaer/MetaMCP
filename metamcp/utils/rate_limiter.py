@@ -124,6 +124,7 @@ class RedisRateLimiter(RateLimiterBackend):
         if self._redis is None:
             try:
                 import redis.asyncio as redis
+
                 self._redis = redis.from_url(self.redis_url)
                 await self._redis.ping()
                 logger.info(f"Connected to Redis for rate limiting: {self.redis_url}")
@@ -132,7 +133,9 @@ class RedisRateLimiter(RateLimiterBackend):
                 raise
         return self._redis
 
-    async def is_allowed(self, key: str, limit: int, window: int) -> tuple[bool, RateLimitInfo]:
+    async def is_allowed(
+        self, key: str, limit: int, window: int
+    ) -> tuple[bool, RateLimitInfo]:
         redis_client = await self._get_redis()
         now = int(time.time())
         async with self._lock:

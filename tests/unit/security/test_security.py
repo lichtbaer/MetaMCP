@@ -786,9 +786,7 @@ class TestDataSecurity:
         await self.auth_service.create_user(user_data)
 
         # Authenticate user (should be logged)
-        await self.auth_service.authenticate_user(
-            "audit_test_user", "AuditPass123!"
-        )
+        await self.auth_service.authenticate_user("audit_test_user", "AuditPass123!")
 
         # Failed authentication (should be logged)
         with pytest.raises(Exception):

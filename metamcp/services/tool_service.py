@@ -135,7 +135,7 @@ class ToolService:
         total = len(all_tools)
 
         # Paginate results
-        paginated_tools = all_tools[offset:offset + limit]
+        paginated_tools = all_tools[offset : offset + limit]
 
         return {
             "tools": paginated_tools,

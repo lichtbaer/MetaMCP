@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 import httpx
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..config import get_settings
 from ..exceptions import MetaMCPException
@@ -34,9 +34,7 @@ class OAuthProvider(BaseModel):
     scopes: list[str] = Field(default=["openid", "email", "profile"])
     redirect_uri: str = Field(..., description="Redirect URI")
 
-    model_config = {
-        "extra": "forbid"
-    }
+    model_config = {"extra": "forbid"}
 
 
 class OAuthToken(BaseModel):
@@ -107,10 +105,12 @@ class OAuthManager:
         # Determine protocol based on environment
         protocol = "https" if self.settings.environment == "production" else "http"
         base_url = f"{protocol}://{self.settings.host}:{self.settings.port}"
-        
+
         # Google OAuth
-        if (self.settings.google_oauth_client_id and 
-            self.settings.google_oauth_client_secret):
+        if (
+            self.settings.google_oauth_client_id
+            and self.settings.google_oauth_client_secret
+        ):
             self.providers["google"] = OAuthProvider(
                 name="google",
                 client_id=self.settings.google_oauth_client_id,
@@ -124,8 +124,10 @@ class OAuthManager:
             logger.info("Google OAuth provider configured")
 
         # GitHub OAuth
-        if (self.settings.github_oauth_client_id and 
-            self.settings.github_oauth_client_secret):
+        if (
+            self.settings.github_oauth_client_id
+            and self.settings.github_oauth_client_secret
+        ):
             self.providers["github"] = OAuthProvider(
                 name="github",
                 client_id=self.settings.github_oauth_client_id,
@@ -139,8 +141,10 @@ class OAuthManager:
             logger.info("GitHub OAuth provider configured")
 
         # Microsoft OAuth
-        if (self.settings.microsoft_oauth_client_id and 
-            self.settings.microsoft_oauth_client_secret):
+        if (
+            self.settings.microsoft_oauth_client_id
+            and self.settings.microsoft_oauth_client_secret
+        ):
             self.providers["microsoft"] = OAuthProvider(
                 name="microsoft",
                 client_id=self.settings.microsoft_oauth_client_id,
@@ -153,7 +157,9 @@ class OAuthManager:
             )
             logger.info("Microsoft OAuth provider configured")
 
-        logger.info(f"Loaded {len(self.providers)} OAuth providers: {list(self.providers.keys())}")
+        logger.info(
+            f"Loaded {len(self.providers)} OAuth providers: {list(self.providers.keys())}"
+        )
 
     async def _initialize_state_management(self) -> None:
         """Initialize OAuth state management."""
@@ -482,21 +488,23 @@ class OAuthManager:
             del self.token_store[token_key]
             logger.info(f"Revoked OAuth session for agent {agent_id} ({provider})")
 
-    async def get_fastmcp_agent_token(self, agent_id: str, provider: str) -> dict[str, Any] | None:
+    async def get_fastmcp_agent_token(
+        self, agent_id: str, provider: str
+    ) -> dict[str, Any] | None:
         """
         Get OAuth token for FastMCP agent with automatic refresh.
-        
+
         Args:
             agent_id: FastMCP agent ID
             provider: OAuth provider name
-            
+
         Returns:
             Token information for FastMCP agent or None if not available
         """
         token = await self.get_agent_token(agent_id, provider)
         if not token:
             return None
-            
+
         return {
             "access_token": token.access_token,
             "token_type": token.token_type,

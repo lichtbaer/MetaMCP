@@ -552,10 +552,10 @@ async def circuit_breaker_status():
     """Get circuit breaker status and statistics."""
     try:
         from ..utils.circuit_breaker import get_circuit_breaker_manager
-        
+
         manager = get_circuit_breaker_manager()
         stats = await manager.get_all_stats()
-        
+
         return {
             "circuit_breakers": {
                 name: {
@@ -586,10 +586,10 @@ async def cache_status():
     """Get cache statistics and performance metrics."""
     try:
         from ..cache.redis_cache import get_cache_manager
-        
+
         cache_manager = get_cache_manager()
         stats = await cache_manager.get_stats()
-        
+
         return {
             "cache_stats": stats.get("cache_stats", {}),
             "redis_info": stats.get("redis_info", {}),
@@ -612,15 +612,15 @@ async def performance_metrics():
     try:
         from ..performance.background_tasks import get_task_manager
         from ..performance.connection_pool import get_database_pool
-        
+
         # Get task manager stats
         task_manager = get_task_manager()
         task_stats = await task_manager.get_stats()
-        
+
         # Get database pool stats
         db_pool = get_database_pool()
         pool_stats = await db_pool.get_pool_status()
-        
+
         return {
             "background_tasks": task_stats,
             "database_pool": pool_stats,

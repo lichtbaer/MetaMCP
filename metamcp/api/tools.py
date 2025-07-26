@@ -152,7 +152,7 @@ def _paginate_tools(
     tools: list[dict[str, Any]], offset: int, limit: int
 ) -> list[dict[str, Any]]:
     """Paginate tools list."""
-    return tools[offset:offset + limit]
+    return tools[offset : offset + limit]
 
 
 def _search_tools_simple(

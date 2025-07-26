@@ -8,13 +8,13 @@ It manages tools with metadata, capabilities, and access control.
 from datetime import UTC, datetime
 from typing import Any
 
+from ..cache.decorators import cache_invalidate, cache_result
 from ..config import get_settings
 from ..exceptions import ToolExecutionError, ToolNotFoundError, ToolRegistrationError
 from ..llm.service import LLMService
 from ..security.policies import PolicyEngine
 from ..utils.logging import get_logger
 from ..vector.client import VectorSearchClient
-from ..cache.decorators import cache_result, cache_invalidate
 
 logger = get_logger(__name__)
 settings = get_settings()
@@ -454,17 +454,21 @@ class ToolRegistry:
         if settings.circuit_breaker_enabled:
             from ..utils.circuit_breaker import (
                 CircuitBreakerConfig,
-                get_circuit_breaker,
                 CircuitBreakerOpenError,
+                get_circuit_breaker,
             )
-            
+
             cb_config = CircuitBreakerConfig(
                 failure_threshold=settings.circuit_breaker_failure_threshold,
                 recovery_timeout=settings.circuit_breaker_recovery_timeout,
                 success_threshold=settings.circuit_breaker_success_threshold,
-                expected_exception=(httpx.TimeoutException, httpx.ConnectError, Exception),
+                expected_exception=(
+                    httpx.TimeoutException,
+                    httpx.ConnectError,
+                    Exception,
+                ),
             )
-            
+
             circuit_breaker = await get_circuit_breaker(f"tool:{tool_name}", cb_config)
         else:
             circuit_breaker = None
@@ -506,7 +510,9 @@ class ToolRegistry:
                             response = await circuit_breaker.call(make_http_call)
                         except CircuitBreakerOpenError as e:
                             last_error = f"Circuit breaker open for {tool_name}: {e}"
-                            logger.warning(f"Circuit breaker open for {tool_name} at {exec_endpoint}")
+                            logger.warning(
+                                f"Circuit breaker open for {tool_name} at {exec_endpoint}"
+                            )
                             continue
                     else:
                         response = await make_http_call()
@@ -518,13 +524,19 @@ class ToolRegistry:
 
                 except httpx.TimeoutException:
                     last_error = f"Timeout connecting to {exec_endpoint}"
-                    logger.warning(f"Timeout on attempt {attempt + 1} for {tool_name} at {exec_endpoint}")
+                    logger.warning(
+                        f"Timeout on attempt {attempt + 1} for {tool_name} at {exec_endpoint}"
+                    )
                 except httpx.ConnectError:
                     last_error = f"Connection error to {exec_endpoint}"
-                    logger.warning(f"Connection error on attempt {attempt + 1} for {tool_name} at {exec_endpoint}")
+                    logger.warning(
+                        f"Connection error on attempt {attempt + 1} for {tool_name} at {exec_endpoint}"
+                    )
                 except Exception as e:
                     last_error = f"Error calling {exec_endpoint}: {str(e)}"
-                    logger.warning(f"Error on attempt {attempt + 1} for {tool_name} at {exec_endpoint}: {e}")
+                    logger.warning(
+                        f"Error on attempt {attempt + 1} for {tool_name} at {exec_endpoint}: {e}"
+                    )
 
             # If we got a successful response, break out of retry loop
             if response and response.status_code == 200:
@@ -534,46 +546,40 @@ class ToolRegistry:
             if attempt < retry_attempts - 1:
                 await asyncio.sleep(retry_delay * (attempt + 1))  # Exponential backoff
 
-                if response and response.status_code == 200:
-                    try:
-                        result = response.json()
-                        return {
-                            "status": "success",
-                            "result": result,
-                            "tool_name": tool_name,
-                            "execution_time": 0.0,  # Will be calculated by caller
-                            "http_status": response.status_code,
-                        }
-                    except ValueError:
-                        # Return text if not JSON
-                        return {
-                            "status": "success",
-                            "result": response.text,
-                            "tool_name": tool_name,
-                            "execution_time": 0.0,
-                            "http_status": response.status_code,
-                        }
-                else:
-                    # Fallback to mock execution if all endpoints fail
-                    logger.warning(
-                        f"Tool execution failed for {tool_name}, using mock: {last_error}"
-                    )
-                    await asyncio.sleep(0.1)
-                    return {
-                        "message": f"Mock execution of {tool_name} with arguments: {arguments}",
-                        "status": "success",
-                        "tool_name": tool_name,
-                        "execution_time": 0.1,
-                        "fallback": True,
-                        "error": last_error,
-                    }
-
-        except Exception as e:
-            logger.error(f"Tool execution failed for {tool_name}: {e}")
-            raise ToolExecutionError(
-                message=f"Tool execution failed: {str(e)}",
-                error_code="execution_failed",
-            ) from e
+        # Process successful response
+        if response and response.status_code == 200:
+            try:
+                result = response.json()
+                return {
+                    "status": "success",
+                    "result": result,
+                    "tool_name": tool_name,
+                    "execution_time": 0.0,  # Will be calculated by caller
+                    "http_status": response.status_code,
+                }
+            except ValueError:
+                # Return text if not JSON
+                return {
+                    "status": "success",
+                    "result": response.text,
+                    "tool_name": tool_name,
+                    "execution_time": 0.0,
+                    "http_status": response.status_code,
+                }
+        else:
+            # Fallback to mock execution if all endpoints fail
+            logger.warning(
+                f"Tool execution failed for {tool_name}, using mock: {last_error}"
+            )
+            await asyncio.sleep(0.1)
+            return {
+                "message": f"Mock execution of {tool_name} with arguments: {arguments}",
+                "status": "success",
+                "tool_name": tool_name,
+                "execution_time": 0.1,
+                "fallback": True,
+                "error": last_error,
+            }
 
     async def shutdown(self) -> None:
         """Shutdown the tool registry."""

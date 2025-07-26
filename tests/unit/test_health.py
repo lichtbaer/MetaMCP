@@ -5,14 +5,16 @@ Tests for the health monitoring system including uptime calculation,
 health checks, and component status monitoring.
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, Mock
 from fastapi.testclient import TestClient
+
 from metamcp.api.health import (
-    format_uptime,
     check_database_health,
-    check_vector_db_health,
     check_llm_service_health,
+    check_vector_db_health,
+    format_uptime,
     health_router,
 )
 from metamcp.utils.database import get_database_manager
@@ -48,17 +50,24 @@ class TestComponentHealthChecks:
     @pytest.mark.asyncio
     @patch("metamcp.utils.database.get_database_manager")
     @patch("metamcp.config.get_settings")
-    async def test_check_database_health_success(self, mock_get_settings, mock_get_db_manager):
+    async def test_check_database_health_success(
+        self, mock_get_settings, mock_get_db_manager
+    ):
         """Test successful database health check."""
         # Mock settings
         mock_settings = Mock()
         mock_settings.database_url = "postgresql://test"
         mock_get_settings.return_value = mock_settings
-        
+
         # Mock database manager
         mock_db_manager = AsyncMock()
         mock_db_manager.is_initialized = True
-        mock_db_manager.health_check.return_value = {"status": "healthy", "response_time": 0.1, "pool_stats": {}, "test_query_result": 1}
+        mock_db_manager.health_check.return_value = {
+            "status": "healthy",
+            "response_time": 0.1,
+            "pool_stats": {},
+            "test_query_result": 1,
+        }
         mock_get_db_manager.return_value = mock_db_manager
 
         result = await check_database_health()
@@ -116,6 +125,7 @@ class TestHealthEndpoints:
     @pytest.fixture
     def client(self):
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(health_router, prefix="/api/v1/health")
         return TestClient(app)
@@ -182,6 +192,7 @@ class TestHealthErrorHandling:
     @pytest.fixture
     def client(self):
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(health_router, prefix="/api/v1/health")
         return TestClient(app)
@@ -201,7 +212,10 @@ class TestHealthErrorHandling:
     def test_detailed_health_check_with_errors(self, mock_get_db_manager, client):
         """Test detailed health check with component errors."""
         mock_db_manager = AsyncMock()
-        mock_db_manager.health_check.return_value = {"status": "unhealthy", "error": "Connection failed"}
+        mock_db_manager.health_check.return_value = {
+            "status": "unhealthy",
+            "error": "Connection failed",
+        }
         mock_get_db_manager.return_value = mock_db_manager
 
         response = client.get("/api/v1/health/detailed")
@@ -237,7 +251,9 @@ class TestHealthComponentIntegration:
     @patch("metamcp.api.health.check_database_health")
     @patch("metamcp.api.health.check_vector_db_health")
     @patch("metamcp.api.health.check_llm_service_health")
-    async def test_all_components_healthy(self, mock_check_llm, mock_check_vector, mock_check_db):
+    async def test_all_components_healthy(
+        self, mock_check_llm, mock_check_vector, mock_check_db
+    ):
         """Test when all components are healthy."""
         # Mock all health checks to return healthy
         mock_check_db.return_value = Mock(status="healthy")
@@ -254,11 +270,7 @@ class TestHealthComponentIntegration:
         from metamcp.api.health import ComponentHealth, DetailedHealthStatus
 
         # Test ComponentHealth structure
-        component = ComponentHealth(
-            name="test",
-            status="healthy",
-            response_time=0.1
-        )
+        component = ComponentHealth(name="test", status="healthy", response_time=0.1)
         assert component.name == "test"
         assert component.status == "healthy"
         assert component.response_time == 0.1
@@ -269,7 +281,7 @@ class TestHealthComponentIntegration:
             timestamp="2023-01-01T00:00:00Z",
             version="1.0.0",
             uptime=3600.0,
-            components=[component]
+            components=[component],
         )
         assert detailed.overall_healthy is True
         assert len(detailed.components) == 1

@@ -2,19 +2,21 @@
 Tests for API versioning functionality.
 """
 
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from metamcp.utils.api_versioning import (
-    VersionStatus,
-    VersionInfo,
     APIVersionManager,
     APIVersionMiddleware,
+    VersionInfo,
     VersionMigrationHelper,
+    VersionStatus,
     create_version_middleware,
+    get_supported_versions,
     get_version_info,
     is_version_supported,
-    get_supported_versions,
 )
 
 
@@ -40,9 +42,9 @@ class TestVersionInfo:
             release_date=now,
             new_features=["Feature 1"],
             bug_fixes=["Bug fix 1"],
-            breaking_changes=[]
+            breaking_changes=[],
         )
-        
+
         assert version_info.version == "v1"
         assert version_info.status == VersionStatus.CURRENT
         assert version_info.release_date == now
@@ -54,11 +56,9 @@ class TestVersionInfo:
         """Test version info with defaults."""
         now = datetime.utcnow()
         version_info = VersionInfo(
-            version="v1",
-            status=VersionStatus.CURRENT,
-            release_date=now
+            version="v1", status=VersionStatus.CURRENT, release_date=now
         )
-        
+
         assert version_info.breaking_changes == []
         assert version_info.new_features == []
         assert version_info.bug_fixes == []
@@ -83,13 +83,11 @@ class TestAPIVersionManager:
         """Test adding a version."""
         now = datetime.utcnow()
         version_info = VersionInfo(
-            version="v3",
-            status=VersionStatus.CURRENT,
-            release_date=now
+            version="v3", status=VersionStatus.CURRENT, release_date=now
         )
-        
+
         version_manager.add_version(version_info)
-        
+
         assert "v3" in version_manager.versions
         assert version_manager.versions["v3"] == version_info
 
@@ -103,14 +101,14 @@ class TestAPIVersionManager:
         """Test checking if version is deprecated."""
         # v1 should not be deprecated
         assert version_manager.is_version_deprecated("v1") is False
-        
+
         # v2 should not be deprecated yet (deprecation_date is in the future)
         assert version_manager.is_version_deprecated("v2") is False
 
     def test_get_supported_versions(self, version_manager):
         """Test getting supported versions."""
         versions = version_manager.get_supported_versions()
-        
+
         assert "v1" in versions
         assert "v2" in versions
         assert len(versions) == 2
@@ -130,7 +128,7 @@ class TestAPIVersionManager:
         # Same version should be compatible
         compatible, message = version_manager.check_compatibility("v1", "v1")
         assert compatible is True
-        
+
         # Different versions should be compatible (no breaking changes)
         compatible, message = version_manager.check_compatibility("v1", "v2")
         assert compatible is True
@@ -140,7 +138,7 @@ class TestAPIVersionManager:
         # v1 should not have deprecation warning
         warning = version_manager.get_deprecation_warning("v1")
         assert warning is None
-        
+
         # v2 should not have deprecation warning yet (not deprecated)
         warning = version_manager.get_deprecation_warning("v2")
         assert warning is None
@@ -165,16 +163,16 @@ class TestAPIVersionMiddleware:
         request = Mock()
         request.headers = {"accept": "application/vnd.api+json; version=v1"}
         request.url.path = "/api/v1/test"
-        
+
         # Create a proper response mock
         response_mock = Mock()
         response_mock.headers = {}
-        
+
         call_next = AsyncMock()
         call_next.return_value = response_mock
-        
+
         response = await middleware(request, call_next)
-        
+
         assert response == response_mock
         assert response.headers["X-API-Version"] == "v1"
         call_next.assert_called_once()
@@ -186,21 +184,21 @@ class TestAPIVersionMiddleware:
         request.headers = {"X-API-Version": "v999"}
         request.url.path = "/api/test"  # No version in path
         request.query_params = {}
-        
+
         call_next = AsyncMock()
-        
+
         # Check that the version is actually unsupported
         version = middleware._extract_version(request)
         assert version == "v999"
         assert not middleware.version_manager.is_version_supported(version)
-        
+
         response = await middleware(request, call_next)
-        
+
         # The response should be a JSONResponse with status_code attribute
-        assert hasattr(response, 'status_code')
+        assert hasattr(response, "status_code")
         assert response.status_code == 400
         # Check that the response content contains version error information
-        assert hasattr(response, 'body')
+        assert hasattr(response, "body")
         response_content = response.body.decode()
         assert "version_error" in response_content.lower()
         assert "v999" in response_content
@@ -209,7 +207,7 @@ class TestAPIVersionMiddleware:
         """Test extracting version from header."""
         request = Mock()
         request.headers = {"X-API-Version": "v1"}
-        
+
         version = middleware._extract_version(request)
         assert version == "v1"
 
@@ -219,7 +217,7 @@ class TestAPIVersionMiddleware:
         request.headers = {}
         request.url.path = "/api/v2/test"
         request.query_params = {}
-        
+
         version = middleware._extract_version(request)
         assert version == "v2"
 
@@ -229,7 +227,7 @@ class TestAPIVersionMiddleware:
         request.headers = {}
         request.url.path = "/api/test"
         request.query_params = {}
-        
+
         version = middleware._extract_version(request)
         assert version == "v1"  # default version
 
@@ -250,7 +248,7 @@ class TestVersionMigrationHelper:
     def test_create_migration_guide(self, migration_helper):
         """Test creating migration guide."""
         guide = migration_helper.create_migration_guide("v1", "v2")
-        
+
         assert "from_version" in guide
         assert "to_version" in guide
         assert "breaking_changes" in guide
@@ -261,7 +259,7 @@ class TestVersionMigrationHelper:
     def test_validate_migration(self, migration_helper):
         """Test validating migration."""
         valid, issues = migration_helper.validate_migration("v1", "v2")
-        
+
         assert valid is True
         assert isinstance(issues, list)
 
@@ -272,14 +270,14 @@ class TestAPIVersioningFunctions:
     def test_create_version_middleware(self):
         """Test creating version middleware."""
         middleware = create_version_middleware()
-        
+
         assert middleware is not None
-        assert hasattr(middleware, '_extract_version')
+        assert hasattr(middleware, "_extract_version")
 
     def test_get_version_info(self):
         """Test getting version info."""
         info = get_version_info("v1")
-        
+
         assert info is not None
         assert info.version == "v1"
         assert info.status == VersionStatus.CURRENT
@@ -287,7 +285,7 @@ class TestAPIVersioningFunctions:
     def test_get_version_info_nonexistent(self):
         """Test getting version info for nonexistent version."""
         info = get_version_info("v999")
-        
+
         assert info is None
 
     def test_is_version_supported(self):
@@ -299,7 +297,7 @@ class TestAPIVersioningFunctions:
     def test_get_supported_versions(self):
         """Test getting supported versions."""
         versions = get_supported_versions()
-        
+
         assert "v1" in versions
         assert "v2" in versions
         assert len(versions) == 2
@@ -311,7 +309,7 @@ class TestAPIVersioningIntegration:
     def test_complete_version_lifecycle(self):
         """Test complete version lifecycle."""
         manager = APIVersionManager()
-        
+
         # Add a new version
         now = datetime.utcnow()
         v3_info = VersionInfo(
@@ -319,18 +317,18 @@ class TestAPIVersioningIntegration:
             status=VersionStatus.CURRENT,
             release_date=now,
             new_features=["New feature"],
-            breaking_changes=["Breaking change"]
+            breaking_changes=["Breaking change"],
         )
         manager.add_version(v3_info)
-        
+
         # Test version management
         assert manager.is_version_supported("v3") is True
         assert manager.get_latest_version() == "v3"
-        
+
         # Test compatibility
         compatible, message = manager.check_compatibility("v1", "v3")
         assert compatible is True  # No breaking changes in default setup
-        
+
         # Test deprecation
         v3_info.status = VersionStatus.DEPRECATED
         v3_info.deprecation_date = now + timedelta(days=30)
@@ -340,15 +338,15 @@ class TestAPIVersioningIntegration:
         """Test middleware integration."""
         manager = APIVersionManager()
         middleware = APIVersionMiddleware(manager)
-        
+
         # Test with valid version
         request = Mock()
         request.headers = {"accept": "application/vnd.api+json; version=v1"}
         request.url.path = "/api/v1/test"
-        
+
         call_next = Mock()
         call_next.return_value = {"status": "success"}
-        
+
         # This would be an async test in practice
         # For now, just test the version extraction
         version = middleware._extract_version(request)
@@ -358,15 +356,15 @@ class TestAPIVersioningIntegration:
         """Test migration helper integration."""
         manager = APIVersionManager()
         helper = VersionMigrationHelper(manager)
-        
+
         # Test migration guide creation
         guide = helper.create_migration_guide("v1", "v2")
-        
+
         assert guide["from_version"] == "v1"
         assert guide["to_version"] == "v2"
         assert "breaking_changes" in guide
         assert "new_features" in guide
-        
+
         # Test migration validation
         valid, issues = helper.validate_migration("v1", "v2")
         assert valid is True

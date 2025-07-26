@@ -48,10 +48,7 @@ class DatabaseConnectionPool:
             }
 
             # Create engine
-            self._engine = create_async_engine(
-                self.database_url,
-                **pool_config
-            )
+            self._engine = create_async_engine(self.database_url, **pool_config)
 
             # Create session factory
             self._session_factory = async_sessionmaker(
@@ -62,8 +59,10 @@ class DatabaseConnectionPool:
             )
 
             logger.info(f"Database connection pool initialized: {self.database_url}")
-            logger.info(f"Pool size: {settings.database_pool_size}, "
-                       f"Max overflow: {settings.database_max_overflow}")
+            logger.info(
+                f"Pool size: {settings.database_pool_size}, "
+                f"Max overflow: {settings.database_max_overflow}"
+            )
 
         return self._engine
 
@@ -99,7 +98,7 @@ class DatabaseConnectionPool:
         try:
             engine = await self.get_engine()
             pool = engine.pool
-            
+
             return {
                 "pool_size": pool.size(),
                 "checked_in": pool.checkedin(),

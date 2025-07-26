@@ -199,9 +199,7 @@ class WorkflowEngine:
 
             if not ready_steps:
                 # Check for circular dependencies or deadlock
-                remaining_steps = (
-                    {step.id for step in workflow.steps} - executed_steps
-                )
+                remaining_steps = {step.id for step in workflow.steps} - executed_steps
                 if remaining_steps:
                     raise WorkflowExecutionError(
                         f"Circular dependency detected: {remaining_steps}"

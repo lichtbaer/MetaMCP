@@ -304,7 +304,7 @@ def chunk_list(lst: list[Any], chunk_size: int) -> list[list[Any]]:
     Returns:
         List of chunks
     """
-    return [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
+    return [lst[i : i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
 
 def deep_merge_dicts(dict1: dict[str, Any], dict2: dict[str, Any]) -> dict[str, Any]:

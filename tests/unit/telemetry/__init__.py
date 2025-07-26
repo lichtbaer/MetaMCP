@@ -4,7 +4,7 @@ Telemetry Tests
 Unit tests for monitoring, metrics, and telemetry features.
 """
 
-from .test_telemetry import TestTelemetry, TestMetrics, TestTracing
+from .test_telemetry import TestMetrics, TestTelemetry, TestTracing
 
 __all__ = [
     "TestTelemetryManager",

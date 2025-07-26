@@ -58,10 +58,11 @@ class VectorSearchClient:
             if self.api_key:
                 # Parse URL to extract host and port
                 from urllib.parse import urlparse
+
                 parsed_url = urlparse(self.url)
                 host = parsed_url.hostname
-                port = parsed_url.port or (443 if parsed_url.scheme == 'https' else 80)
-                secure = parsed_url.scheme == 'https'
+                port = parsed_url.port or (443 if parsed_url.scheme == "https" else 80)
+                secure = parsed_url.scheme == "https"
 
                 self.client = weaviate.connect_to_custom(
                     http_host=host,
@@ -75,10 +76,11 @@ class VectorSearchClient:
             else:
                 # For local development without authentication
                 from urllib.parse import urlparse
+
                 parsed_url = urlparse(self.url)
                 host = parsed_url.hostname
-                port = parsed_url.port or (443 if parsed_url.scheme == 'https' else 80)
-                secure = parsed_url.scheme == 'https'
+                port = parsed_url.port or (443 if parsed_url.scheme == "https" else 80)
+                secure = parsed_url.scheme == "https"
 
                 self.client = weaviate.connect_to_custom(
                     http_host=host,

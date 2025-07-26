@@ -2,8 +2,10 @@
 Unit tests for database connection pooling.
 """
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, Mock
+
 from metamcp.utils.database import DatabaseManager, get_database_manager
 
 
@@ -20,7 +22,7 @@ class TestDatabaseManager:
             mock_settings = Mock()
             mock_settings.database_url = None
             mock_get_settings.return_value = mock_settings
-            
+
             # Set the settings on the db_manager
             db_manager._settings = mock_settings
 
@@ -31,20 +33,22 @@ class TestDatabaseManager:
     @pytest.mark.asyncio
     async def test_initialize_with_url(self, db_manager):
         """Test initialization with URL."""
-        with patch("metamcp.utils.database.get_settings") as mock_get_settings, \
-             patch("asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool:
-            
+        with (
+            patch("metamcp.utils.database.get_settings") as mock_get_settings,
+            patch("asyncpg.create_pool", new_callable=AsyncMock) as mock_create_pool,
+        ):
+
             mock_settings = Mock()
             mock_settings.database_url = "postgresql://test"
             mock_get_settings.return_value = mock_settings
-            
+
             # Set the settings on the db_manager
             db_manager._settings = mock_settings
-            
+
             mock_pool = Mock()
             mock_connection = Mock()
             mock_connection.fetchval = AsyncMock(return_value=1)
-            
+
             # Create proper async context manager for pool.acquire
             mock_context = AsyncMock()
             mock_context.__aenter__.return_value = mock_connection
@@ -87,7 +91,7 @@ class TestDatabaseManager:
         mock_pool.get_min_size.return_value = 5
         mock_pool.get_max_size.return_value = 20
         mock_pool.get_idle_size.return_value = 8
-        
+
         # Create proper async context manager for pool.acquire
         mock_context = AsyncMock()
         mock_context.__aenter__.return_value = mock_connection

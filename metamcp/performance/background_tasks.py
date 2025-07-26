@@ -8,10 +8,10 @@ and performance optimization.
 import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 from uuid import uuid4
 
 from ..config import get_settings
@@ -23,6 +23,7 @@ settings = get_settings()
 
 class TaskStatus(Enum):
     """Task status enumeration."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -32,6 +33,7 @@ class TaskStatus(Enum):
 
 class TaskPriority(Enum):
     """Task priority enumeration."""
+
     LOW = 1
     NORMAL = 2
     HIGH = 3
@@ -41,6 +43,7 @@ class TaskPriority(Enum):
 @dataclass
 class TaskInfo:
     """Task information."""
+
     id: str
     name: str
     status: TaskStatus
@@ -107,7 +110,7 @@ class BackgroundTaskManager:
         name: str = None,
         priority: TaskPriority = TaskPriority.NORMAL,
         max_retries: int = 3,
-        **kwargs
+        **kwargs,
     ) -> str:
         """Submit a task for background execution."""
         task_id = str(uuid4())
@@ -141,26 +144,26 @@ class BackgroundTaskManager:
     async def get_task_result(self, task_id: str, timeout: float = None) -> Any:
         """Get task result, waiting if necessary."""
         start_time = time.time()
-        
+
         while True:
             task_info = await self.get_task_status(task_id)
-            
+
             if task_info is None:
                 raise ValueError(f"Task {task_id} not found")
-            
+
             if task_info.status == TaskStatus.COMPLETED:
                 return task_info.result
-            
+
             if task_info.status == TaskStatus.FAILED:
                 raise Exception(f"Task failed: {task_info.error}")
-            
+
             if task_info.status == TaskStatus.CANCELLED:
                 raise Exception("Task was cancelled")
-            
+
             # Check timeout
             if timeout and (time.time() - start_time) > timeout:
                 raise asyncio.TimeoutError(f"Task {task_id} timed out")
-            
+
             # Wait before checking again
             await asyncio.sleep(0.1)
 
@@ -182,41 +185,46 @@ class BackgroundTaskManager:
     async def cleanup_completed_tasks(self, max_age_hours: int = 24):
         """Clean up completed tasks older than specified age."""
         cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
-        
+
         async with self._lock:
             tasks_to_remove = [
-                task_id for task_id, task_info in self._tasks.items()
-                if (task_info.status in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED] and
-                    task_info.completed_at and task_info.completed_at < cutoff_time)
+                task_id
+                for task_id, task_info in self._tasks.items()
+                if (
+                    task_info.status
+                    in [TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED]
+                    and task_info.completed_at
+                    and task_info.completed_at < cutoff_time
+                )
             ]
-            
+
             for task_id in tasks_to_remove:
                 del self._tasks[task_id]
-            
+
             if tasks_to_remove:
                 logger.info(f"Cleaned up {len(tasks_to_remove)} completed tasks")
 
     async def _worker(self, worker_name: str):
         """Worker task that processes the task queue."""
         logger.debug(f"Started worker: {worker_name}")
-        
+
         while self._running:
             try:
                 # Get task from queue
                 priority, task_id, func, args, kwargs = await asyncio.wait_for(
                     self._task_queue.get(), timeout=1.0
                 )
-                
+
                 # Update task status
                 async with self._lock:
                     task_info = self._tasks.get(task_id)
                     if task_info and task_info.status == TaskStatus.PENDING:
                         task_info.status = TaskStatus.RUNNING
                         task_info.started_at = datetime.now()
-                
+
                 if task_info is None:
                     continue
-                
+
                 # Execute task
                 start_time = time.time()
                 try:
@@ -229,49 +237,74 @@ class BackgroundTaskManager:
                         result = await loop.run_in_executor(
                             self._executor, func, *args, **kwargs
                         )
-                    
+
                     # Update task info
                     async with self._lock:
                         task_info.status = TaskStatus.COMPLETED
                         task_info.completed_at = datetime.now()
                         task_info.result = result
                         task_info.execution_time = time.time() - start_time
-                    
-                    logger.debug(f"Task {task_id} completed in {task_info.execution_time:.2f}s")
-                
+
+                    logger.debug(
+                        f"Task {task_id} completed in {task_info.execution_time:.2f}s"
+                    )
+
                 except Exception as e:
                     # Handle task failure
                     async with self._lock:
                         task_info.error = str(e)
                         task_info.retries += 1
-                        
+
                         if task_info.retries < task_info.max_retries:
                             # Retry task
                             task_info.status = TaskStatus.PENDING
-                            await self._task_queue.put((priority, task_id, func, args, kwargs))
-                            logger.warning(f"Retrying task {task_id} (attempt {task_info.retries})")
+                            await self._task_queue.put(
+                                (priority, task_id, func, args, kwargs)
+                            )
+                            logger.warning(
+                                f"Retrying task {task_id} (attempt {task_info.retries})"
+                            )
                         else:
                             # Mark as failed
                             task_info.status = TaskStatus.FAILED
                             task_info.completed_at = datetime.now()
                             task_info.execution_time = time.time() - start_time
-                            logger.error(f"Task {task_id} failed after {task_info.retries} retries: {e}")
-                
+                            logger.error(
+                                f"Task {task_id} failed after {task_info.retries} retries: {e}"
+                            )
+
                 finally:
                     self._task_queue.task_done()
-        
+            except asyncio.TimeoutError:
+                # Timeout waiting for task, continue to next iteration
+                continue
+            except Exception as e:
+                # Handle any other exceptions in the worker loop
+                logger.error(f"Worker {worker_name} encountered error: {e}")
+                continue
+
         logger.debug(f"Stopped worker: {worker_name}")
 
     async def get_stats(self) -> Dict[str, Any]:
         """Get task manager statistics."""
         async with self._lock:
             total_tasks = len(self._tasks)
-            pending_tasks = sum(1 for t in self._tasks.values() if t.status == TaskStatus.PENDING)
-            running_tasks = sum(1 for t in self._tasks.values() if t.status == TaskStatus.RUNNING)
-            completed_tasks = sum(1 for t in self._tasks.values() if t.status == TaskStatus.COMPLETED)
-            failed_tasks = sum(1 for t in self._tasks.values() if t.status == TaskStatus.FAILED)
-            cancelled_tasks = sum(1 for t in self._tasks.values() if t.status == TaskStatus.CANCELLED)
-            
+            pending_tasks = sum(
+                1 for t in self._tasks.values() if t.status == TaskStatus.PENDING
+            )
+            running_tasks = sum(
+                1 for t in self._tasks.values() if t.status == TaskStatus.RUNNING
+            )
+            completed_tasks = sum(
+                1 for t in self._tasks.values() if t.status == TaskStatus.COMPLETED
+            )
+            failed_tasks = sum(
+                1 for t in self._tasks.values() if t.status == TaskStatus.FAILED
+            )
+            cancelled_tasks = sum(
+                1 for t in self._tasks.values() if t.status == TaskStatus.CANCELLED
+            )
+
             return {
                 "total_tasks": total_tasks,
                 "pending_tasks": pending_tasks,
@@ -302,11 +335,13 @@ async def submit_background_task(
     *args,
     name: str = None,
     priority: TaskPriority = TaskPriority.NORMAL,
-    **kwargs
+    **kwargs,
 ) -> str:
     """Submit a background task."""
     task_manager = get_task_manager()
-    return await task_manager.submit_task(func, *args, name=name, priority=priority, **kwargs)
+    return await task_manager.submit_task(
+        func, *args, name=name, priority=priority, **kwargs
+    )
 
 
 async def start_background_tasks():

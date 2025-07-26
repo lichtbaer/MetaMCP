@@ -4,7 +4,7 @@ Security Tests
 Unit tests for authentication, authorization, and security features.
 """
 
-from .test_security import TestSecurity, TestAuthentication, TestAuthorization
+from .test_security import TestAuthentication, TestAuthorization, TestSecurity
 
 __all__ = [
     "TestAuthentication",
